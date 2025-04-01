@@ -30,29 +30,43 @@ class Connector():
             """, (self.database, table_name))
             return c.fetchone() is not None  # Повертає True, якщо таблиця існує
 
-    def create_table(self, table_name:str):
+    def create_table(self, table_name:str, command:str):
         connection = self.create_connection()
-        """Створює таблицю 'users' у MySQL, якщо вона не існує."""
+        """Створює таблицю у MySQL, якщо вона не існує."""
         with connection.cursor() as c:
             # Якщо таблиця не існує, створюємо її
             if not self.table_exists(table_name):
-                c.execute(f"""
-                    CREATE TABLE {table_name.lower()} (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        username VARCHAR(255) UNIQUE,
-                        password VARCHAR(255),
-                        email VARCHAR(255) UNIQUE
-                    )
-                """)
+                c.execute(command)
                 # Збереження змін
                 connection.commit()
 
+class Sites_handler():
+    def __init__(self):
+        pass
+
+    def add_site(self):
+        pass
+
+    def get_sites(self, user_id):
+        pass
+
 class User():
     def __init__(self):
+        self.user_id = None
         self.username = tk.StringVar()
         self.password = tk.StringVar()
         self.repeated_password = tk.StringVar()
         self.email = tk.StringVar()
+
+    def set_user_id(self, connector):
+        connection = connector.create_connection()
+        with connection.cursor() as c:
+            c.execute("""SELECT id FROM users WHERE username = %s;""", self.username.get())
+            self.user_id = c.fetchone()['id']
+            print(self.user_id)
+
+    def get_user_id(self):
+        return self.user_id
 
     def reset_username(self):
         self.username.set("")
@@ -106,13 +120,19 @@ class User():
             c.execute("""
                 SELECT EXISTS(SELECT 1 FROM users WHERE username = %s AND password = %s)
              AS user_exists""", (username, password_input))
-            return c.fetchone()["user_exists"]  # Повертає 1 або 0
+            if c.fetchone()["user_exists"]:
+                c.close()
+                self.set_user_id(connector)
+                return True
+            else: return False
+
 
 class App():
     def __init__(self):
         self.win = tk.Tk()
         self.user = User()
         self.connector = Connector()
+        self.sites_handler = Sites_handler()
 
     def validate_username(self):
         """Дозволяє лише літери, цифри та _, від 3 до 20 символів."""
@@ -127,7 +147,25 @@ class App():
         return bool(re.fullmatch(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$', self.user.email.get()))
 
     def start_app(self):
-        self.connector.create_table("users")
+        self.connector.create_table("users", f"""
+                    CREATE TABLE users (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        username VARCHAR(255) UNIQUE,
+                        password VARCHAR(255),
+                        email VARCHAR(255) UNIQUE
+                    )
+                """)
+        self.connector.create_table("sites", f"""
+                    CREATE TABLE sites (
+                        id INT AUTO_INCREMENT,
+                        site VARCHAR(255),
+                        entrance_type VARCHAR(255),
+                        user_id INT, PRIMARY KEY (id),
+                        FOREIGN KEY (user_id) REFERENCES users(id),
+                        login VARCHAR(255),
+                        password VARCHAR(255)
+                    )
+                """)
         def center_window(root, width=400, height=300):
             screen_width = root.winfo_screenwidth()
             screen_height = root.winfo_screenheight()
@@ -242,6 +280,59 @@ class App():
         btn.grid(row=0,column=0, padx=10)
         back_btn.grid(row=0,column=1, padx=10)
 
+    def open_add_sites_win(self):
+        self._clear_window()
+        label = tk.Label(self.win, text="Введіть Ваше ім'я і пароль!", font=("Arial", 14))
+        label.pack(pady=20)
+
+        frame = tk.Frame(self.win, bd=2, relief="ridge")
+        btns_frame = tk.Frame(self.win)
+        label = tk.Label(frame, text='Username:', bd=10)
+        label.grid(row=0, column=0)
+        username_field = tk.Entry(frame,textvariable=self.user.username, bg='white', highlightthickness=1)
+        username_field.insert(0, "")
+        username_field.grid(row=0, column=1)
+
+        label = tk.Label(frame, text='Password:', bd=10)
+        label.grid(row=1, column=0)
+        password_field = tk.Entry(frame, textvariable=self.user.password, bg='white', highlightthickness=1, show="*")
+        password_field.insert(0, "")
+        password_field.grid(row=1, column=1)
+
+        frame.pack(pady=10)
+        btns_frame.pack(pady=10)
+
+        back_btn = tk.Button(btns_frame, text="Назад", command=self._go_back)
+        btn = tk.Button(btns_frame, text="Увійти", command=self.sign_in)
+        btn.grid(row=0, column=0, padx=10)
+        back_btn.grid(row=0, column=1, padx=10)
+
+    def open_show_sites_win(self):
+        self._clear_window()
+        label = tk.Label(self.win, text="Введіть Ваше ім'я і пароль!", font=("Arial", 14))
+        label.pack(pady=20)
+
+        frame = tk.Frame(self.win, bd=2, relief="ridge")
+        btns_frame = tk.Frame(self.win)
+        label = tk.Label(frame, text='Username:', bd=10)
+        label.grid(row=0, column=0)
+        username_field = tk.Entry(frame,textvariable=self.user.username, bg='white', highlightthickness=1)
+        username_field.insert(0, "")
+        username_field.grid(row=0, column=1)
+
+        label = tk.Label(frame, text='Password:', bd=10)
+        label.grid(row=1, column=0)
+        password_field = tk.Entry(frame, textvariable=self.user.password, bg='white', highlightthickness=1, show="*")
+        password_field.insert(0, "")
+        password_field.grid(row=1, column=1)
+
+        frame.pack(pady=10)
+        btns_frame.pack(pady=10)
+
+        back_btn = tk.Button(btns_frame, text="Назад", command=self._go_back)
+        btn = tk.Button(btns_frame, text="Увійти", command=self.sign_in)
+        btn.grid(row=0, column=0, padx=10)
+        back_btn.grid(row=0, column=1, padx=10)
 
     def sign_in(self):
         if not self.validate_username():
@@ -302,7 +393,11 @@ class App():
             self._clear_window()
             self._show_success_message("Вітаємо! Ви успішно зареєструвалися! ")
 
+    def add_sites(self):
+        pass
 
+    def show_sites(self):
+        pass
 import pymysql
 
 some_app = App()
