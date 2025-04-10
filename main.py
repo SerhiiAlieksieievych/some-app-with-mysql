@@ -63,7 +63,6 @@ class User():
         with connection.cursor() as c:
             c.execute("""SELECT id FROM users WHERE username = %s;""", self.username.get())
             self.user_id = c.fetchone()['id']
-            print(self.user_id)
 
     def get_user_id(self):
         return self.user_id
@@ -133,6 +132,13 @@ class App():
         self.user = User()
         self.connector = Connector()
         self.sites_handler = Sites_handler()
+        self.windows = {"start_window": StartWindow(self),
+                        "sign_in_window": SignInWindow(self),
+                        "sign_on_window": SignOnWindow(self),
+                        "adding_sites_window": AddingSitesWindow(self),
+                        "my_sites_window": MySitesWindow(self)
+                        }
+        self.current_page = self.windows["start_window"]
 
     def validate_username(self):
         """Дозволяє лише літери, цифри та _, від 3 до 20 символів."""
@@ -176,7 +182,7 @@ class App():
         center_window(self.win)
         self.win.title('Якийсь там застосунок')
         self.win.resizable(height=False, width=False)
-        self.open_start_win()
+        self.windows['start_window'].show()
         self.win.mainloop()
 
     def _go_back(self):
@@ -199,158 +205,26 @@ class App():
         btn = tk.Button(self.win, text="Закінчити це все", command=self.win.destroy)
         btn.pack(pady=20)
 
-    def open_start_win(self):
-        btn_font = ("Arial", 14, "bold")
-        self._clear_window()
-        suggestion = tk.Label(self.win, text="Оберіть потрібну дію:", font=("Arial", 18, 'bold'), pady=10)
-        sign_in_btn = tk.Button(self.win, text="Увійти", command=self.open_sign_in_win, pady=10, width=15,
-                                font=btn_font)
-        sign_on_btn = tk.Button(self.win, text="Зареєструватись", command=self.open_sign_on_win, pady=10, width=15,
-                                font=btn_font)
-        close_btn = tk.Button(self.win, text="Закрити", command=self.win.destroy, pady=10, width=15, font=btn_font)
-        suggestion.pack()
-        sign_in_btn.place(relx=0.5, rely=0.3, anchor="center")
-        sign_on_btn.place(relx=0.5, rely=0.55, anchor="center")
-        close_btn.place(relx=0.5, rely=0.8, anchor="center")
-
-    def open_sign_in_win(self):
-        self._clear_window()
-        label = tk.Label(self.win, text="Введіть Ваше ім'я і пароль!", font=("Arial", 14))
-        label.pack(pady=20)
-
-        frame = tk.Frame(self.win, bd=2, relief="ridge")
-        btns_frame = tk.Frame(self.win)
-        label = tk.Label(frame, text='Username:', bd=10)
-        label.grid(row=0, column=0)
-        username_field = tk.Entry(frame,textvariable=self.user.username, bg='white', highlightthickness=1)
-        username_field.insert(0, "")
-        username_field.grid(row=0, column=1)
-
-        label = tk.Label(frame, text='Password:', bd=10)
-        label.grid(row=1, column=0)
-        password_field = tk.Entry(frame, textvariable=self.user.password, bg='white', highlightthickness=1, show="*")
-        password_field.insert(0, "")
-        password_field.grid(row=1, column=1)
-
-        frame.pack(pady=10)
-        btns_frame.pack(pady=10)
-
-        back_btn = tk.Button(btns_frame, text="Назад", command=self._go_back)
-        btn = tk.Button(btns_frame, text="Увійти", command=self.sign_in)
-        btn.grid(row=0, column=0, padx=10)
-        back_btn.grid(row=0, column=1, padx=10)
-
-    def open_sign_on_win(self):
-        self._clear_window()
-        label = tk.Label(self.win, text="Введіть Ваші дані!", font=("Arial", 14))
-        label.pack(pady=20)
-
-        frame = tk.Frame(self.win, bd=2, relief="ridge")  # рельєф межі фрейму
-        btns_frame = tk.Frame(self.win)
-
-        label = tk.Label(frame, text='Username:', bd=10)
-        label.grid(row=0, column=0)
-        username_field = tk.Entry(frame, textvariable=self.user.username, bg='white', highlightthickness=1)
-        username_field.insert(0, "")
-        username_field.grid(row=0, column=1)
-
-        label = tk.Label(frame, text='Email:', bd=10)
-        label.grid(row=1, column=0)
-        email_field = tk.Entry(frame, textvariable=self.user.email, bg='white', highlightthickness=1)
-        email_field.insert(0, "")
-        email_field.grid(row=1, column=1)
-
-        label = tk.Label(frame, text='Password:', bd=10)
-        label.grid(row=2, column=0)
-        password_field = tk.Entry(frame, textvariable=self.user.password, bg='white', highlightthickness=1, show="*")
-        password_field.insert(0, "")
-        password_field.grid(row=2, column=1)
-
-        label = tk.Label(frame, text='Repeat password:', bd=10)
-        label.grid(row=3, column=0)
-        password_field = tk.Entry(frame, textvariable=self.user.repeated_password, bg='white', highlightthickness=1, show="*")
-        password_field.insert(0, "")
-        password_field.grid(row=3, column=1)
-
-        frame.pack(pady=10)
-        btns_frame.pack(pady=10)
-
-        back_btn = tk.Button(btns_frame, text="Назад", command=self._go_back)
-        btn = tk.Button(btns_frame, text="Зареєструватися", command=self.sign_on)
-        btn.grid(row=0,column=0, padx=10)
-        back_btn.grid(row=0,column=1, padx=10)
-
-    def open_add_sites_win(self):
-        self._clear_window()
-        label = tk.Label(self.win, text="Введіть Ваше ім'я і пароль!", font=("Arial", 14))
-        label.pack(pady=20)
-
-        frame = tk.Frame(self.win, bd=2, relief="ridge")
-        btns_frame = tk.Frame(self.win)
-        label = tk.Label(frame, text='Username:', bd=10)
-        label.grid(row=0, column=0)
-        username_field = tk.Entry(frame,textvariable=self.user.username, bg='white', highlightthickness=1)
-        username_field.insert(0, "")
-        username_field.grid(row=0, column=1)
-
-        label = tk.Label(frame, text='Password:', bd=10)
-        label.grid(row=1, column=0)
-        password_field = tk.Entry(frame, textvariable=self.user.password, bg='white', highlightthickness=1, show="*")
-        password_field.insert(0, "")
-        password_field.grid(row=1, column=1)
-
-        frame.pack(pady=10)
-        btns_frame.pack(pady=10)
-
-        back_btn = tk.Button(btns_frame, text="Назад", command=self._go_back)
-        btn = tk.Button(btns_frame, text="Увійти", command=self.sign_in)
-        btn.grid(row=0, column=0, padx=10)
-        back_btn.grid(row=0, column=1, padx=10)
-
-    def open_show_sites_win(self):
-        self._clear_window()
-        label = tk.Label(self.win, text="Введіть Ваше ім'я і пароль!", font=("Arial", 14))
-        label.pack(pady=20)
-
-        frame = tk.Frame(self.win, bd=2, relief="ridge")
-        btns_frame = tk.Frame(self.win)
-        label = tk.Label(frame, text='Username:', bd=10)
-        label.grid(row=0, column=0)
-        username_field = tk.Entry(frame,textvariable=self.user.username, bg='white', highlightthickness=1)
-        username_field.insert(0, "")
-        username_field.grid(row=0, column=1)
-
-        label = tk.Label(frame, text='Password:', bd=10)
-        label.grid(row=1, column=0)
-        password_field = tk.Entry(frame, textvariable=self.user.password, bg='white', highlightthickness=1, show="*")
-        password_field.insert(0, "")
-        password_field.grid(row=1, column=1)
-
-        frame.pack(pady=10)
-        btns_frame.pack(pady=10)
-
-        back_btn = tk.Button(btns_frame, text="Назад", command=self._go_back)
-        btn = tk.Button(btns_frame, text="Увійти", command=self.sign_in)
-        btn.grid(row=0, column=0, padx=10)
-        back_btn.grid(row=0, column=1, padx=10)
 
     def sign_in(self):
+        print(self.current_page, "CUR")
+        print(self.windows['sign_in_window'].previous_window, "PREV")
         if not self.validate_username():
             self._clear_window()
-            self._show_warning_message("Ім'я має містити лише латинські літери, цифри та знак підкреслення, та має бути довжиною від 3 до 20 символів.", self.open_sign_in_win)
+            self._show_warning_message("Ім'я має містити лише латинські літери, цифри та знак підкреслення, та має бути довжиною від 3 до 20 символів.", self.current_page.show)
             self.user.reset_username()
         elif not self.user.check_for_existence_username(self.connector,self.user.username.get()):
             self._clear_window()
             self._show_warning_message(
                 "Користувач з таким логіном не зареєстрований.",
-                self.open_sign_in_win)
+                self.current_page.show)
             self.user.reset_all()
         elif self.user.login(self.connector, self.user.username.get(), self.user.password.get()):
             self._clear_window()
             self._show_success_message("Вітаємо! Ви успішно залогінились!")
         else:
             self._clear_window()
-            self._show_warning_message("Невірний пароль!", self.open_sign_in_win)
+            self._show_warning_message("Невірний пароль!", self.current_page.show)
             self.user.reset_password()
 
     def sign_on(self):
@@ -358,35 +232,35 @@ class App():
             self._clear_window()
             self._show_warning_message(
                 "Ім'я має містити лише латинські літери, цифри та знак підкреслення, та має бути довжиною від 3 до 20 символів.",
-                self.open_sign_on_win)
+                self.current_page.show)
             self.user.reset_username()
         elif not self.validate_email():
             self._clear_window()
             self._show_warning_message(
                 "Введіть коректну пошту.",
-                self.open_sign_on_win)
+                self.current_page.show)
             self.user.reset_email()
         elif not self.validate_password():
             self._clear_window()
             self._show_warning_message(
                 "Пароль має бути довжиною від 8 до 20 символів, містити хоча б одну латинську літеру та одну цифру.",
-                self.open_sign_on_win)
+                self.current_page.show)
             self.user.reset_password()
             self.user.reset_repeated_password()
         elif self.user.password.get() != self.user.repeated_password.get():
             self._clear_window()
             self._show_warning_message(
                 "Пароль має збігатися в обох полях.",
-                self.open_sign_on_win)
+                self.current_page.show)
             self.user.reset_password()
             self.user.reset_repeated_password()
         elif self.user.check_for_existence_username(self.connector, self.user.username.get()):
             self._clear_window()
-            self._show_warning_message("Користувач з таким ім'ям вже зареєстрований!", self.open_sign_on_win)
+            self._show_warning_message("Користувач з таким ім'ям вже зареєстрований!", self.current_page.show)
             self.user.reset_username()
         elif self.user.check_has_duplication_email(self.connector, self.user.email.get()):
             self._clear_window()
-            self._show_warning_message("Користувач з такою поштою вже зареєстрований!", self.open_sign_on_win)
+            self._show_warning_message("Користувач з такою поштою вже зареєстрований!", self.current_page.show)
             self.user.reset_email()
         else:
             self.user.register(self.connector)
@@ -396,8 +270,182 @@ class App():
     def add_sites(self):
         pass
 
-    def show_sites(self):
-        pass
+class Window():
+    def __init__(self, app:App, previous_window = None):
+        self.app = app
+        self.previous_window = previous_window
+
+    def get_previous_window(self):
+        if self.previous_window != self.app.current_page:
+            self.previous_window = self.app.current_page
+
+    def set_current_window(self):
+        if self.previous_window != self.app.current_page:
+            self.app.current_page = self
+
+    def go_back(self):
+        self.previous_window.show()
+        self.app.user.reset_all()
+
+class StartWindow(Window):
+    def show(self):
+        self.get_previous_window()
+        self.set_current_window()
+        app = self.app
+        btn_font = ("Arial", 14, "bold")
+        app._clear_window()
+        suggestion = tk.Label(app.win, text="Оберіть потрібну дію:", font=("Arial", 18, 'bold'), pady=10)
+        sign_in_btn = tk.Button(app.win, text="Увійти", command=app.windows['sign_in_window'].show, pady=10, width=15,
+                                font=btn_font)
+        sign_on_btn = tk.Button(app.win, text="Зареєструватись", command=app.windows['sign_on_window'].show, pady=10, width=15,
+                                font=btn_font)
+        close_btn = tk.Button(app.win, text="Закрити", command=app.win.destroy, pady=10, width=15, font=btn_font)
+        suggestion.pack()
+        sign_in_btn.place(relx=0.5, rely=0.3, anchor="center")
+        sign_on_btn.place(relx=0.5, rely=0.55, anchor="center")
+        close_btn.place(relx=0.5, rely=0.8, anchor="center")
+
+class SignInWindow(Window):
+    def show(self):
+        self.get_previous_window()
+        self.set_current_window()
+        app = self.app
+        user = app.user
+        app._clear_window()
+        label = tk.Label(app.win, text="Введіть Ваше ім'я і пароль!", font=("Arial", 14))
+        label.pack(pady=20)
+
+        frame = tk.Frame(app.win, bd=2, relief="ridge")
+        btns_frame = tk.Frame(app.win)
+        label = tk.Label(frame, text='Username:', bd=10)
+        label.grid(row=0, column=0)
+        username_field = tk.Entry(frame, textvariable=user.username, bg='white', highlightthickness=1)
+        username_field.insert(0, "")
+        username_field.grid(row=0, column=1)
+
+        label = tk.Label(frame, text='Password:', bd=10)
+        label.grid(row=1, column=0)
+        password_field = tk.Entry(frame, textvariable=user.password, bg='white', highlightthickness=1, show="*")
+        password_field.insert(0, "")
+        password_field.grid(row=1, column=1)
+
+        frame.pack(pady=10)
+        btns_frame.pack(pady=10)
+
+        back_btn = tk.Button(btns_frame, text="Назад", command=self.go_back)
+        btn = tk.Button(btns_frame, text="Увійти", command=self.app.sign_in)
+        btn.grid(row=0, column=0, padx=10)
+        back_btn.grid(row=0, column=1, padx=10)
+
+class SignOnWindow(Window):
+    def show(self):
+        self.get_previous_window()
+        self.set_current_window()
+        app = self.app
+        user = app.user
+        app._clear_window()
+        label = tk.Label(app.win, text="Введіть Ваші дані!", font=("Arial", 14))
+        label.pack(pady=20)
+
+        frame = tk.Frame(app.win, bd=2, relief="ridge")  # рельєф межі фрейму
+        btns_frame = tk.Frame(app.win)
+
+        label = tk.Label(frame, text='Username:', bd=10)
+        label.grid(row=0, column=0)
+        username_field = tk.Entry(frame, textvariable=user.username, bg='white', highlightthickness=1)
+        username_field.insert(0, "")
+        username_field.grid(row=0, column=1)
+
+        label = tk.Label(frame, text='Email:', bd=10)
+        label.grid(row=1, column=0)
+        email_field = tk.Entry(frame, textvariable=user.email, bg='white', highlightthickness=1)
+        email_field.insert(0, "")
+        email_field.grid(row=1, column=1)
+
+        label = tk.Label(frame, text='Password:', bd=10)
+        label.grid(row=2, column=0)
+        password_field = tk.Entry(frame, textvariable=user.password, bg='white', highlightthickness=1, show="*")
+        password_field.insert(0, "")
+        password_field.grid(row=2, column=1)
+
+        label = tk.Label(frame, text='Repeat password:', bd=10)
+        label.grid(row=3, column=0)
+        password_field = tk.Entry(frame, textvariable=user.repeated_password, bg='white', highlightthickness=1,
+                                  show="*")
+        password_field.insert(0, "")
+        password_field.grid(row=3, column=1)
+
+        frame.pack(pady=10)
+        btns_frame.pack(pady=10)
+
+        back_btn = tk.Button(btns_frame, text="Назад", command=self.go_back)
+        btn = tk.Button(btns_frame, text="Зареєструватися", command=self.app.sign_on)
+        btn.grid(row=0, column=0, padx=10)
+        back_btn.grid(row=0, column=1, padx=10)
+
+class AddingSitesWindow(Window):
+    def show(self):
+        self.get_previous_window()
+        self.set_current_window()
+        app = self.app
+        user = app.user
+        app._clear_window()
+        label = tk.Label(app.win, text="Введіть сайт на якиому ви зареєстровані!", font=("Arial", 14))
+        label.pack(pady=20)
+
+        frame = tk.Frame(app.win, bd=2, relief="ridge")
+        btns_frame = tk.Frame(app.win)
+        label = tk.Label(frame, text='Site:', bd=10)
+        label.grid(row=0, column=0)
+        username_field = tk.Entry(frame, textvariable="PASS", bg='white', highlightthickness=1)
+        username_field.insert(0, "")
+        username_field.grid(row=0, column=1)
+
+        label = tk.Label(frame, text='Password:', bd=10)
+        label.grid(row=1, column=0)
+        password_field = tk.Entry(frame, textvariable="PASS", bg='white', highlightthickness=1, show="*")
+        password_field.insert(0, "")
+        password_field.grid(row=1, column=1)
+
+        frame.pack(pady=10)
+        btns_frame.pack(pady=10)
+
+        back_btn = tk.Button(btns_frame, text="Назад", command="PASS")
+        btn = tk.Button(btns_frame, text="Додати", command="PASS")
+        btn.grid(row=0, column=0, padx=10)
+        back_btn.grid(row=0, column=1, padx=10)
+
+class MySitesWindow(Window):
+    def show(self):
+        self.get_previous_window()
+        self.set_current_window()
+        app = self.app
+        user = app.user
+        app._clear_window()
+        label = tk.Label(app.win, text="Сайти на яких ви зареєстровані", font=("Arial", 14))
+        label.pack(pady=20)
+
+        frame = tk.Frame(self.win, bd=2, relief="ridge")
+        btns_frame = tk.Frame(self.win)
+        label = tk.Label(frame, text='Username:', bd=10)
+        label.grid(row=0, column=0)
+        username_field = tk.Entry(frame, textvariable=self.user.username, bg='white', highlightthickness=1)
+        username_field.insert(0, "")
+        username_field.grid(row=0, column=1)
+
+        label = tk.Label(frame, text='Password:', bd=10)
+        label.grid(row=1, column=0)
+        password_field = tk.Entry(frame, textvariable=self.user.password, bg='white', highlightthickness=1, show="*")
+        password_field.insert(0, "")
+        password_field.grid(row=1, column=1)
+
+        frame.pack(pady=10)
+        btns_frame.pack(pady=10)
+
+        back_btn = tk.Button(btns_frame, text="Назад", command="PASS")
+        back_btn.grid(row=0, column=1, padx=10)
+
+
 import pymysql
 
 some_app = App()
