@@ -2,6 +2,146 @@ import tkinter as tk
 import re
 import pymysql
 import pymysql.cursors
+class App():
+    def __init__(self):
+        self.win = tk.Tk()
+        self.user = User()
+        self.connector = Connector()
+        self.sites_handler = SitesHandler(self)
+        self.windows = {"start_window": StartWindow(self),
+                        "sign_in_window": SignInWindow(self),
+                        "sign_on_window": SignOnWindow(self),
+                        "adding_sites_window": AddingSitesWindow(self),
+                        "my_sites_window": MySitesWindow(self)
+                        }
+        self.current_page = self.windows["start_window"]
+
+    def validate_username(self):
+        """Дозволяє лише літери, цифри та _, від 3 до 20 символів."""
+        return bool(re.fullmatch(r'^[a-zA-Z0-9_]{3,20}$', self.user.username.get()))
+
+    def validate_password(self):
+        """Пароль має бути довжиною від 8 до 20 символів, містити хоча б одну літеру та одну цифру."""
+        return bool(re.fullmatch(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@#$%^&+=!]{8,20}$', self.user.password.get()))
+
+    def validate_email(self):
+        """Проста перевірка коректного формату email."""
+        return bool(re.fullmatch(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$', self.user.email.get()))
+
+    def start_app(self):
+        self.connector.create_table("users", f"""
+                    CREATE TABLE users (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        username VARCHAR(255) UNIQUE,
+                        password VARCHAR(255),
+                        email VARCHAR(255) UNIQUE
+                    )
+                """)
+        self.connector.create_table("sites", f"""
+                    CREATE TABLE sites (
+                        id INT AUTO_INCREMENT,
+                        site VARCHAR(255),
+                        entrance_type VARCHAR(255),
+                        user_id INT, PRIMARY KEY (id),
+                        FOREIGN KEY (user_id) REFERENCES users(id),
+                        login VARCHAR(255),
+                        password VARCHAR(255)
+                    )
+                """)
+        def center_window(root, width=400, height=300):
+            screen_width = root.winfo_screenwidth()
+            screen_height = root.winfo_screenheight()
+            x = (screen_width - width) // 2
+            y = (screen_height - height) // 2
+            root.geometry(f"{width}x{height}+{x}+{y}")
+
+        center_window(self.win)
+        self.win.title('Якийсь там застосунок')
+        self.win.resizable(height=False, width=False)
+        #self.windows['start_window'].show()
+        self.windows["adding_sites_window"].show()
+        self.win.mainloop()
+
+    def _go_back(self):
+        self.user.reset_all()
+        self.windows['start_window'].show()
+
+    def clear_window(self):
+        for widget in self.win.winfo_children():
+            widget.destroy()
+
+    def _show_warning_message(self, text, callback):
+        label = tk.Label(self.win, text=text, font=("Arial", 14), wraplength=260, justify="left")
+        label.pack(pady=20)
+        btn = tk.Button(self.win, text="Спробувати ще раз", command=callback)
+        btn.pack(pady=20)
+
+    def _show_success_message(self, text):
+        label = tk.Label(self.win, text=text, font=("Arial", 14),  wraplength=260, justify="left")
+        label.pack(pady=20)
+        btn = tk.Button(self.win, text="Закінчити це все", command=self.win.destroy)
+        btn.pack(pady=20)
+
+    def sign_in(self):
+        print(self.current_page, "CUR")
+        print(self.windows['sign_in_window'].previous_window, "PREV")
+        if not self.validate_username():
+            self.clear_window()
+            self._show_warning_message("Ім'я має містити лише латинські літери, цифри та знак підкреслення, та має бути довжиною від 3 до 20 символів.", self.current_page.show)
+            self.user.reset_username()
+        elif not self.user.check_for_existence_username(self.connector,self.user.username.get()):
+            self.clear_window()
+            self._show_warning_message(
+                "Користувач з таким логіном не зареєстрований.",
+                self.current_page.show)
+            self.user.reset_all()
+        elif self.user.login(self.connector, self.user.username.get(), self.user.password.get()):
+            self.clear_window()
+            self._show_success_message("Вітаємо! Ви успішно залогінились!")
+        else:
+            self.clear_window()
+            self._show_warning_message("Невірний пароль!", self.current_page.show)
+            self.user.reset_password()
+
+    def sign_on(self):
+        if not self.validate_username():
+            self.clear_window()
+            self._show_warning_message(
+                "Ім'я має містити лише латинські літери, цифри та знак підкреслення, та має бути довжиною від 3 до 20 символів.",
+                self.current_page.show)
+            self.user.reset_username()
+        elif not self.validate_email():
+            self.clear_window()
+            self._show_warning_message(
+                "Введіть коректну пошту.",
+                self.current_page.show)
+            self.user.reset_email()
+        elif not self.validate_password():
+            self.clear_window()
+            self._show_warning_message(
+                "Пароль має бути довжиною від 8 до 20 символів, містити хоча б одну латинську літеру та одну цифру.",
+                self.current_page.show)
+            self.user.reset_password()
+            self.user.reset_repeated_password()
+        elif self.user.password.get() != self.user.repeated_password.get():
+            self.clear_window()
+            self._show_warning_message(
+                "Пароль має збігатися в обох полях.",
+                self.current_page.show)
+            self.user.reset_password()
+            self.user.reset_repeated_password()
+        elif self.user.check_for_existence_username(self.connector, self.user.username.get()):
+            self.clear_window()
+            self._show_warning_message("Користувач з таким ім'ям вже зареєстрований!", self.current_page.show)
+            self.user.reset_username()
+        elif self.user.check_has_duplication_email(self.connector, self.user.email.get()):
+            self.clear_window()
+            self._show_warning_message("Користувач з такою поштою вже зареєстрований!", self.current_page.show)
+            self.user.reset_email()
+        else:
+            self.user.register(self.connector)
+            self.clear_window()
+            self._show_success_message("Вітаємо! Ви успішно зареєструвалися! ")
 
 class Connector():
     def __init__(self):
@@ -39,17 +179,6 @@ class Connector():
                 c.execute(command)
                 # Збереження змін
                 connection.commit()
-
-class Sites_handler():
-    def __init__(self):
-        pass
-
-    def add_site(self):
-        pass
-
-    def get_sites(self, user_id):
-        pass
-
 class User():
     def __init__(self):
         self.user_id = None
@@ -125,150 +254,37 @@ class User():
                 return True
             else: return False
 
+class SitesHandler():
+    def __init__(self, app: App):
+        self.connector = app.connector
+        self.user= app.user
+        self.selected_kind_of_entrance = tk.StringVar()
+        self.site = tk.StringVar()
+        self.login = tk.StringVar()
+        self.password = tk.StringVar()
+        self.selected_kind_of_entrance.set("password")
 
-class App():
-    def __init__(self):
-        self.win = tk.Tk()
-        self.user = User()
-        self.connector = Connector()
-        self.sites_handler = Sites_handler()
-        self.windows = {"start_window": StartWindow(self),
-                        "sign_in_window": SignInWindow(self),
-                        "sign_on_window": SignOnWindow(self),
-                        "adding_sites_window": AddingSitesWindow(self),
-                        "my_sites_window": MySitesWindow(self)
-                        }
-        self.current_page = self.windows["start_window"]
-
-    def validate_username(self):
-        """Дозволяє лише літери, цифри та _, від 3 до 20 символів."""
-        return bool(re.fullmatch(r'^[a-zA-Z0-9_]{3,20}$', self.user.username.get()))
-
-    def validate_password(self):
-        """Пароль має бути довжиною від 8 до 20 символів, містити хоча б одну літеру та одну цифру."""
-        return bool(re.fullmatch(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@#$%^&+=!]{8,20}$', self.user.password.get()))
-
-    def validate_email(self):
-        """Проста перевірка коректного формату email."""
-        return bool(re.fullmatch(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$', self.user.email.get()))
-
-    def start_app(self):
-        self.connector.create_table("users", f"""
-                    CREATE TABLE users (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        username VARCHAR(255) UNIQUE,
-                        password VARCHAR(255),
-                        email VARCHAR(255) UNIQUE
-                    )
-                """)
-        self.connector.create_table("sites", f"""
-                    CREATE TABLE sites (
-                        id INT AUTO_INCREMENT,
-                        site VARCHAR(255),
-                        entrance_type VARCHAR(255),
-                        user_id INT, PRIMARY KEY (id),
-                        FOREIGN KEY (user_id) REFERENCES users(id),
-                        login VARCHAR(255),
-                        password VARCHAR(255)
-                    )
-                """)
-        def center_window(root, width=400, height=300):
-            screen_width = root.winfo_screenwidth()
-            screen_height = root.winfo_screenheight()
-            x = (screen_width - width) // 2
-            y = (screen_height - height) // 2
-            root.geometry(f"{width}x{height}+{x}+{y}")
-
-        center_window(self.win)
-        self.win.title('Якийсь там застосунок')
-        self.win.resizable(height=False, width=False)
-        self.windows['start_window'].show()
-        self.win.mainloop()
-
-    def _go_back(self):
-        self.user.reset_all()
-        self.open_start_win()
-
-    def _clear_window(self):
-        for widget in self.win.winfo_children():
-            widget.destroy()
-
-    def _show_warning_message(self, text, callback):
-        label = tk.Label(self.win, text=text, font=("Arial", 14), wraplength=260, justify="left")
-        label.pack(pady=20)
-        btn = tk.Button(self.win, text="Спробувати ще раз", command=callback)
-        btn.pack(pady=20)
-
-    def _show_success_message(self, text):
-        label = tk.Label(self.win, text=text, font=("Arial", 14),  wraplength=260, justify="left")
-        label.pack(pady=20)
-        btn = tk.Button(self.win, text="Закінчити це все", command=self.win.destroy)
-        btn.pack(pady=20)
+    def add_site(self):
+        connection = self.connector.create_connection()
+        with connection.cursor() as c:
+            try:
+                query = """
+                        INSERT INTO sites (site, entrance_type, user_id, login, password)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """
+                values = (self.site.get(), self.selected_kind_of_entrance.get(), self.user.user_id, self.login.get(), self.password.get())
+                c.execute(query, values)
+                connection.commit()
+                print("✅ Сайт успішно додано!")
+            except self.connector.Error as err:
+                print("❌ Помилка:", err)
 
 
-    def sign_in(self):
-        print(self.current_page, "CUR")
-        print(self.windows['sign_in_window'].previous_window, "PREV")
-        if not self.validate_username():
-            self._clear_window()
-            self._show_warning_message("Ім'я має містити лише латинські літери, цифри та знак підкреслення, та має бути довжиною від 3 до 20 символів.", self.current_page.show)
-            self.user.reset_username()
-        elif not self.user.check_for_existence_username(self.connector,self.user.username.get()):
-            self._clear_window()
-            self._show_warning_message(
-                "Користувач з таким логіном не зареєстрований.",
-                self.current_page.show)
-            self.user.reset_all()
-        elif self.user.login(self.connector, self.user.username.get(), self.user.password.get()):
-            self._clear_window()
-            self._show_success_message("Вітаємо! Ви успішно залогінились!")
-        else:
-            self._clear_window()
-            self._show_warning_message("Невірний пароль!", self.current_page.show)
-            self.user.reset_password()
-
-    def sign_on(self):
-        if not self.validate_username():
-            self._clear_window()
-            self._show_warning_message(
-                "Ім'я має містити лише латинські літери, цифри та знак підкреслення, та має бути довжиною від 3 до 20 символів.",
-                self.current_page.show)
-            self.user.reset_username()
-        elif not self.validate_email():
-            self._clear_window()
-            self._show_warning_message(
-                "Введіть коректну пошту.",
-                self.current_page.show)
-            self.user.reset_email()
-        elif not self.validate_password():
-            self._clear_window()
-            self._show_warning_message(
-                "Пароль має бути довжиною від 8 до 20 символів, містити хоча б одну латинську літеру та одну цифру.",
-                self.current_page.show)
-            self.user.reset_password()
-            self.user.reset_repeated_password()
-        elif self.user.password.get() != self.user.repeated_password.get():
-            self._clear_window()
-            self._show_warning_message(
-                "Пароль має збігатися в обох полях.",
-                self.current_page.show)
-            self.user.reset_password()
-            self.user.reset_repeated_password()
-        elif self.user.check_for_existence_username(self.connector, self.user.username.get()):
-            self._clear_window()
-            self._show_warning_message("Користувач з таким ім'ям вже зареєстрований!", self.current_page.show)
-            self.user.reset_username()
-        elif self.user.check_has_duplication_email(self.connector, self.user.email.get()):
-            self._clear_window()
-            self._show_warning_message("Користувач з такою поштою вже зареєстрований!", self.current_page.show)
-            self.user.reset_email()
-        else:
-            self.user.register(self.connector)
-            self._clear_window()
-            self._show_success_message("Вітаємо! Ви успішно зареєструвалися! ")
-
-    def add_sites(self):
+    def get_sites(self, user_id):
         pass
+
+
+
 
 class Window():
     def __init__(self, app:App, previous_window = None):
@@ -293,7 +309,7 @@ class StartWindow(Window):
         self.set_current_window()
         app = self.app
         btn_font = ("Arial", 14, "bold")
-        app._clear_window()
+        app.clear_window()
         suggestion = tk.Label(app.win, text="Оберіть потрібну дію:", font=("Arial", 18, 'bold'), pady=10)
         sign_in_btn = tk.Button(app.win, text="Увійти", command=app.windows['sign_in_window'].show, pady=10, width=15,
                                 font=btn_font)
@@ -311,7 +327,7 @@ class SignInWindow(Window):
         self.set_current_window()
         app = self.app
         user = app.user
-        app._clear_window()
+        app.clear_window()
         label = tk.Label(app.win, text="Введіть Ваше ім'я і пароль!", font=("Arial", 14))
         label.pack(pady=20)
 
@@ -343,7 +359,7 @@ class SignOnWindow(Window):
         self.set_current_window()
         app = self.app
         user = app.user
-        app._clear_window()
+        app.clear_window()
         label = tk.Label(app.win, text="Введіть Ваші дані!", font=("Arial", 14))
         label.pack(pady=20)
 
@@ -388,32 +404,51 @@ class AddingSitesWindow(Window):
         self.get_previous_window()
         self.set_current_window()
         app = self.app
-        user = app.user
-        app._clear_window()
-        label = tk.Label(app.win, text="Введіть сайт на якиому ви зареєстровані!", font=("Arial", 14))
-        label.pack(pady=20)
+        sites_handler = app.sites_handler
+        app.clear_window()
+        label = tk.Label(app.win, text="Введіть сайт на якому ви зареєстровані!", font=("Arial", 14))
+        label.pack(pady=5)
 
         frame = tk.Frame(app.win, bd=2, relief="ridge")
         btns_frame = tk.Frame(app.win)
-        label = tk.Label(frame, text='Site:', bd=10)
+        label = tk.Label(frame, text='Сайт:', bd=3)
         label.grid(row=0, column=0)
-        username_field = tk.Entry(frame, textvariable="PASS", bg='white', highlightthickness=1)
-        username_field.insert(0, "")
-        username_field.grid(row=0, column=1)
 
-        label = tk.Label(frame, text='Password:', bd=10)
+        sitename_field = tk.Entry(frame, textvariable=sites_handler.site, bg='white', highlightthickness=1)
+        sitename_field.insert(0, "")
+        sitename_field.grid(row=0, column=1)
+
+        label = tk.Label(frame, text='Логін:', bd=3)
         label.grid(row=1, column=0)
-        password_field = tk.Entry(frame, textvariable="PASS", bg='white', highlightthickness=1, show="*")
+        login_field = tk.Entry(frame, textvariable=sites_handler.login, bg='white', highlightthickness=1, show="*")
+        login_field.insert(0, "")
+        login_field.grid(row=1, column=1)
+
+        label = tk.Label(frame, text='Пароль:', bd=3)
+        label.grid(row=2, column=0)
+        password_field = tk.Entry(frame, textvariable=sites_handler.password, bg='white', highlightthickness=1,show="*")
         password_field.insert(0, "")
-        password_field.grid(row=1, column=1)
+        password_field.grid(row=2, column=1)
 
-        frame.pack(pady=10)
-        btns_frame.pack(pady=10)
+        label = tk.Label(frame, text='Тип входу:')
+        label.grid(row=3, column=0)
+        radio1 = tk.Radiobutton(frame, text="Логін-пароль", variable=sites_handler.selected_kind_of_entrance, value="password")
+        radio2 = tk.Radiobutton(frame, text="Гугл", variable=sites_handler.selected_kind_of_entrance, value="google")
+        radio3 = tk.Radiobutton(frame, text="Фейс.. Мета", variable=sites_handler.selected_kind_of_entrance, value="meta")
+        radio4 = tk.Radiobutton(frame, text="Гітхаб", variable=sites_handler.selected_kind_of_entrance, value="github")
+        radio5 = tk.Radiobutton(frame, text="Яблуко", variable=sites_handler.selected_kind_of_entrance, value="apple")
+        radio1.grid(row=3, column=1)
+        radio2.grid(row=4, column=1)
+        radio3.grid(row=5, column=1)
+        radio4.grid(row=6, column=1)
+        radio5.grid(row=7, column=1)
+        frame.pack(pady = 5)
 
-        back_btn = tk.Button(btns_frame, text="Назад", command="PASS")
-        btn = tk.Button(btns_frame, text="Додати", command="PASS")
+        back_btn = tk.Button(btns_frame, text="Назад", command=self.go_back)
+        btn = tk.Button(btns_frame, text="Додати", command=sites_handler.add_site)
         btn.grid(row=0, column=0, padx=10)
         back_btn.grid(row=0, column=1, padx=10)
+        btns_frame.pack(pady=10)
 
 class MySitesWindow(Window):
     def show(self):
