@@ -59,7 +59,7 @@ class App():
         self.win.title('Якийсь там застосунок')
         self.win.resizable(height=False, width=False)
         #self.windows['start_window'].show()
-        self.windows["adding_sites_window"].show()
+        self.windows["my_sites_window"].show()
         self.win.mainloop()
 
     def _go_back(self):
@@ -272,7 +272,7 @@ class SitesHandler():
                         INSERT INTO sites (site, entrance_type, user_id, login, password)
                         VALUES (%s, %s, %s, %s, %s)
                     """
-                values = (self.site.get(), self.selected_kind_of_entrance.get(), self.user.user_id, self.login.get(), self.password.get())
+                values = (self.site.get(), self.selected_kind_of_entrance.get(), 1, self.login.get(), self.password.get())#self.user.user_id
                 c.execute(query, values)
                 connection.commit()
                 print("✅ Сайт успішно додано!")
@@ -281,8 +281,16 @@ class SitesHandler():
 
 
     def get_sites(self, user_id):
-        pass
-
+        connection = self.connector.create_connection()
+        try:
+            with connection.cursor() as c:
+                query = "SELECT * FROM sites WHERE user_id = %s"
+                c.execute(query, (user_id,))
+                result = c.fetchall()
+                return result
+        except  pymysql.MySQLError as err:
+            print(f"Помилка: {err}")
+            return None
 
 
 
@@ -302,6 +310,23 @@ class Window():
     def go_back(self):
         self.previous_window.show()
         self.app.user.reset_all()
+
+    def set_fullscreen(self):
+        app = self.app
+        screen_width = app.win.winfo_screenwidth()
+        screen_height = app.win.winfo_screenheight()
+        app.win.geometry(f"{screen_width}x{screen_height}+0+0")
+        app.win.attributes('-fullscreen', True)
+        app.win.bind("<Escape>", lambda e: app.win.attributes("-fullscreen", False))
+
+    def set_small_window(self, width=400, height=300):
+        app = self.app
+        screen_width = app.win.winfo_screenwidth()
+        screen_height = app.win.winfo_screenheight()
+        x = (screen_width - width) // 2
+        y = (screen_height - height) // 2
+        app.win.geometry(f"{width}x{height}+{x}+{y}")
+
 
 class StartWindow(Window):
     def show(self):
@@ -451,35 +476,31 @@ class AddingSitesWindow(Window):
         btns_frame.pack(pady=10)
 
 class MySitesWindow(Window):
+    def parser(self, pframe:tk.Frame, sites:list[dict]):
+        count = 1
+        frame = tk.Frame(pframe)
+        for site in sites:
+            self._string_generator(frame, site, count)
+            count += 1
+        frame.grid(row=1, column=0)
+    def _string_generator(self,frame:tk.Frame, site:dict, string_number:int):
+        gusset = f", Login: {site['login']}, Password: {site['password']}" if site['entrance_type'] == 'password' else "."
+        label = tk.Label(frame, text=f"Site: {site['site']}, Kind of entrance: {site['entrance_type']}{gusset}")
+        label.grid(row=string_number + 1, column=0)
     def show(self):
         self.get_previous_window()
         self.set_current_window()
         app = self.app
         user = app.user
-        app._clear_window()
+        app.clear_window()
+        self.set_fullscreen()
+
         label = tk.Label(app.win, text="Сайти на яких ви зареєстровані", font=("Arial", 14))
-        label.pack(pady=20)
-
-        frame = tk.Frame(self.win, bd=2, relief="ridge")
-        btns_frame = tk.Frame(self.win)
-        label = tk.Label(frame, text='Username:', bd=10)
         label.grid(row=0, column=0)
-        username_field = tk.Entry(frame, textvariable=self.user.username, bg='white', highlightthickness=1)
-        username_field.insert(0, "")
-        username_field.grid(row=0, column=1)
 
-        label = tk.Label(frame, text='Password:', bd=10)
-        label.grid(row=1, column=0)
-        password_field = tk.Entry(frame, textvariable=self.user.password, bg='white', highlightthickness=1, show="*")
-        password_field.insert(0, "")
-        password_field.grid(row=1, column=1)
-
-        frame.pack(pady=10)
-        btns_frame.pack(pady=10)
-
-        back_btn = tk.Button(btns_frame, text="Назад", command="PASS")
-        back_btn.grid(row=0, column=1, padx=10)
-
+        frame = tk.Frame(self.app.win, bd=2, relief="ridge")
+        self.parser(frame,app.sites_handler.get_sites(1))#!!!!
+        frame.grid(row=1, column=0)
 
 import pymysql
 
