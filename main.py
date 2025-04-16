@@ -11,7 +11,7 @@ class App():
         self.windows = {"start_window": StartWindow(self),
                         "sign_in_window": SignInWindow(self),
                         "sign_on_window": SignOnWindow(self),
-                        "adding_sites_window": AddingSitesWindow(self),
+                        #"adding_sites_window": AddingSitesWindow(self),
                         "my_sites_window": MySitesWindow(self)
                         }
         self.current_page = self.windows["start_window"]
@@ -97,7 +97,7 @@ class App():
             self.user.reset_all()
         elif self.user.login(self.connector, self.user.username.get(), self.user.password.get()):
             self.clear_window()
-            self._show_success_message("Вітаємо! Ви успішно залогінились!")
+            self.windows["my_sites_window"].show()
         else:
             self.clear_window()
             self._show_warning_message("Невірний пароль!", self.current_page.show)
@@ -424,83 +424,197 @@ class SignOnWindow(Window):
         btn.grid(row=0, column=0, padx=10)
         back_btn.grid(row=0, column=1, padx=10)
 
-class AddingSitesWindow(Window):
+# class AddingSitesWindow(Window):
+#     def show(self):
+#         self.get_previous_window()
+#         self.set_current_window()
+#         app = self.app
+#         sites_handler = app.sites_handler
+#         app.clear_window()
+#         label = tk.Label(app.win, text="Введіть сайт на якому ви зареєстровані!", font=("Arial", 14))
+#         label.pack(pady=5)
+#
+#         add_frame = tk.Frame(app.win, bd=2, relief="ridge")
+#         btns_add_frame = tk.Frame(app.win)
+#         label = tk.Label(add_frame, text='Сайт:', bd=3)
+#         label.grid(row=0, column=0)
+#
+#         sitename_field = tk.Entry(add_frame, textvariable=sites_handler.site, bg='white', highlightthickness=1)
+#         sitename_field.insert(0, "")
+#         sitename_field.grid(row=0, column=1)
+#
+#         label = tk.Label(add_frame, text='Логін:', bd=3)
+#         label.grid(row=1, column=0)
+#         login_field = tk.Entry(add_frame, textvariable=sites_handler.login, bg='white', highlightthickness=1, show="*")
+#         login_field.insert(0, "")
+#         login_field.grid(row=1, column=1)
+#
+#         label = tk.Label(add_frame, text='Пароль:', bd=3)
+#         label.grid(row=2, column=0)
+#         password_field = tk.Entry(add_frame, textvariable=sites_handler.password, bg='white', highlightthickness=1,show="*")
+#         password_field.insert(0, "")
+#         password_field.grid(row=2, column=1)
+#
+#         label = tk.Label(add_frame, text='Тип входу:')
+#         label.grid(row=3, column=0)
+#         radio1 = tk.Radiobutton(add_frame, text="Логін-пароль", variable=sites_handler.selected_kind_of_entrance, value="password")
+#         radio2 = tk.Radiobutton(add_frame, text="Гугл", variable=sites_handler.selected_kind_of_entrance, value="google")
+#         radio3 = tk.Radiobutton(add_frame, text="Фейс.. Мета", variable=sites_handler.selected_kind_of_entrance, value="meta")
+#         radio4 = tk.Radiobutton(add_frame, text="Гітхаб", variable=sites_handler.selected_kind_of_entrance, value="github")
+#         radio5 = tk.Radiobutton(add_frame, text="Яблуко", variable=sites_handler.selected_kind_of_entrance, value="apple")
+#         radio1.grid(row=3, column=1)
+#         radio2.grid(row=4, column=1)
+#         radio3.grid(row=5, column=1)
+#         radio4.grid(row=6, column=1)
+#         radio5.grid(row=7, column=1)
+#         add_frame.pack(pady = 5)
+#
+#         back_btn = tk.Button(btns_add_frame, text="Назад", command=self.go_back)
+#         btn = tk.Button(btns_add_frame, text="Додати", command=sites_handler.add_site)
+#         btn.grid(row=0, column=0, padx=10)
+#         back_btn.grid(row=0, column=1, padx=10)
+#         btns_add_frame.pack(pady=10)
+
+class MySitesWindow(Window):
+    def parser(self, pframe: tk.Frame, sites: list[dict]):
+        for count, site in enumerate(sites, start=1):
+            self._string_generator(pframe, site, count)
+
+    def _string_generator(self, frame: tk.Frame, site: dict, string_number: int):
+        gusset = f", Login: {site['login']}, Password: {site['password']}" if site['entrance_type'] == 'password' else "."
+        label = tk.Label(frame, text=f"Site: {site['site']}, Kind of entrance: {site['entrance_type']}{gusset}", anchor="w")
+        label.grid(row=string_number, column=0, sticky="w", padx=5, pady=2)
+
     def show(self):
         self.get_previous_window()
         self.set_current_window()
         app = self.app
         sites_handler = app.sites_handler
         app.clear_window()
-        label = tk.Label(app.win, text="Введіть сайт на якому ви зареєстровані!", font=("Arial", 14))
-        label.pack(pady=5)
-
-        frame = tk.Frame(app.win, bd=2, relief="ridge")
-        btns_frame = tk.Frame(app.win)
-        label = tk.Label(frame, text='Сайт:', bd=3)
-        label.grid(row=0, column=0)
-
-        sitename_field = tk.Entry(frame, textvariable=sites_handler.site, bg='white', highlightthickness=1)
-        sitename_field.insert(0, "")
-        sitename_field.grid(row=0, column=1)
-
-        label = tk.Label(frame, text='Логін:', bd=3)
-        label.grid(row=1, column=0)
-        login_field = tk.Entry(frame, textvariable=sites_handler.login, bg='white', highlightthickness=1, show="*")
-        login_field.insert(0, "")
-        login_field.grid(row=1, column=1)
-
-        label = tk.Label(frame, text='Пароль:', bd=3)
-        label.grid(row=2, column=0)
-        password_field = tk.Entry(frame, textvariable=sites_handler.password, bg='white', highlightthickness=1,show="*")
-        password_field.insert(0, "")
-        password_field.grid(row=2, column=1)
-
-        label = tk.Label(frame, text='Тип входу:')
-        label.grid(row=3, column=0)
-        radio1 = tk.Radiobutton(frame, text="Логін-пароль", variable=sites_handler.selected_kind_of_entrance, value="password")
-        radio2 = tk.Radiobutton(frame, text="Гугл", variable=sites_handler.selected_kind_of_entrance, value="google")
-        radio3 = tk.Radiobutton(frame, text="Фейс.. Мета", variable=sites_handler.selected_kind_of_entrance, value="meta")
-        radio4 = tk.Radiobutton(frame, text="Гітхаб", variable=sites_handler.selected_kind_of_entrance, value="github")
-        radio5 = tk.Radiobutton(frame, text="Яблуко", variable=sites_handler.selected_kind_of_entrance, value="apple")
-        radio1.grid(row=3, column=1)
-        radio2.grid(row=4, column=1)
-        radio3.grid(row=5, column=1)
-        radio4.grid(row=6, column=1)
-        radio5.grid(row=7, column=1)
-        frame.pack(pady = 5)
-
-        back_btn = tk.Button(btns_frame, text="Назад", command=self.go_back)
-        btn = tk.Button(btns_frame, text="Додати", command=sites_handler.add_site)
-        btn.grid(row=0, column=0, padx=10)
-        back_btn.grid(row=0, column=1, padx=10)
-        btns_frame.pack(pady=10)
-
-class MySitesWindow(Window):
-    def parser(self, pframe:tk.Frame, sites:list[dict]):
-        count = 1
-        frame = tk.Frame(pframe)
-        for site in sites:
-            self._string_generator(frame, site, count)
-            count += 1
-        frame.grid(row=1, column=0)
-    def _string_generator(self,frame:tk.Frame, site:dict, string_number:int):
-        gusset = f", Login: {site['login']}, Password: {site['password']}" if site['entrance_type'] == 'password' else "."
-        label = tk.Label(frame, text=f"Site: {site['site']}, Kind of entrance: {site['entrance_type']}{gusset}")
-        label.grid(row=string_number + 1, column=0)
-    def show(self):
-        self.get_previous_window()
-        self.set_current_window()
-        app = self.app
-        user = app.user
-        app.clear_window()
         self.set_fullscreen()
 
-        label = tk.Label(app.win, text="Сайти на яких ви зареєстровані", font=("Arial", 14))
-        label.grid(row=0, column=0)
+        # Основний контейнер
+        main_container = tk.Frame(app.win)
+        main_container.pack(fill="both", expand=True, padx=50, pady=30)
 
-        frame = tk.Frame(self.app.win, bd=2, relief="ridge")
-        self.parser(frame,app.sites_handler.get_sites(1))#!!!!
-        frame.grid(row=1, column=0)
+        # Заголовок
+        title = tk.Label(main_container, text="Сайти на яких ви зареєстровані", font=("Arial", 18, "bold"))
+        title.pack(pady=(0, 20))
+
+        # Список сайтів
+        sites_frame = tk.Frame(main_container, bd=2, relief="groove", padx=10, pady=10)
+        sites_frame.pack(fill="x", padx=10, pady=10)
+        self.parser(sites_frame, sites_handler.get_sites(1))
+
+        # Форма додавання
+        add_frame = tk.LabelFrame(main_container, text="Додати новий сайт", padx=10, pady=10, font=("Arial", 12))
+        add_frame.pack(fill="x", padx=10, pady=10)
+
+        tk.Label(add_frame, text='Сайт:').grid(row=0, column=0, sticky="e", pady=5)
+        sitename_field = tk.Entry(add_frame, textvariable=sites_handler.site, bg='white', width=40)
+        sitename_field.grid(row=0, column=1, pady=5)
+
+        tk.Label(add_frame, text='Логін:').grid(row=1, column=0, sticky="e", pady=5)
+        login_field = tk.Entry(add_frame, textvariable=sites_handler.login, bg='white', show="*", width=40)
+        login_field.grid(row=1, column=1, pady=5)
+
+        tk.Label(add_frame, text='Пароль:').grid(row=2, column=0, sticky="e", pady=5)
+        password_field = tk.Entry(add_frame, textvariable=sites_handler.password, bg='white', show="*", width=40)
+        password_field.grid(row=2, column=1, pady=5)
+
+        tk.Label(add_frame, text='Тип входу:').grid(row=3, column=0, sticky="ne", pady=5)
+        radio_frame = tk.Frame(add_frame)
+        radio_frame.grid(row=3, column=1, sticky="w", pady=5)
+
+        radios = [
+            ("Логін-пароль", "password"),
+            ("Гугл", "google"),
+            ("Фейс.. Мета", "meta"),
+            ("Гітхаб", "github"),
+            ("Яблуко", "apple")
+        ]
+
+        for i, (text, value) in enumerate(radios):
+            tk.Radiobutton(radio_frame, text=text, variable=sites_handler.selected_kind_of_entrance, value=value).grid(row=i, column=0, sticky="w")
+
+        # Кнопки
+        btns_add_frame = tk.Frame(main_container)
+        btns_add_frame.pack(pady=20)
+
+        tk.Button(btns_add_frame, text="Додати", command=sites_handler.add_site, width=15).grid(row=0, column=0, padx=20)
+        tk.Button(btns_add_frame, text="Назад", command=self.go_back, width=15).grid(row=0, column=1, padx=20)
+
+# class MySitesWindow(Window):
+#     def parser(self, pframe:tk.Frame, sites:list[dict]):
+#         count = 1
+#         frame = tk.Frame(pframe)
+#         for site in sites:
+#             self._string_generator(frame, site, count)
+#             count += 1
+#         frame.grid(row=1, column=0)
+#     def _string_generator(self,frame:tk.Frame, site:dict, string_number:int):
+#         gusset = f", Login: {site['login']}, Password: {site['password']}" if site['entrance_type'] == 'password' else "."
+#         label = tk.Label(frame, text=f"Site: {site['site']}, Kind of entrance: {site['entrance_type']}{gusset}")
+#         label.grid(row=string_number + 1, column=0)
+#     def show(self):
+#         self.get_previous_window()
+#         self.set_current_window()
+#         app = self.app
+#         sites_handler = app.sites_handler
+#         app.clear_window()
+#         self.set_fullscreen()
+#
+#         label = tk.Label(app.win, text="Сайти на яких ви зареєстровані", font=("Arial", 14))
+#         label.grid(row=0, column=0)
+#
+#         frame = tk.Frame(self.app.win, bd=2, relief="ridge")
+#         self.parser(frame,app.sites_handler.get_sites(1))#!!!!
+#         add_frame = tk.Frame(app.win, bd=2, relief="ridge")
+#         btns_add_frame = tk.Frame(app.win)
+#         label = tk.Label(add_frame, text='Сайт:', bd=3)
+#         label.grid(row=2, column=0)
+#
+#         sitename_field = tk.Entry(add_frame, textvariable=sites_handler.site, bg='white', highlightthickness=1)
+#         sitename_field.insert(0, "")
+#         sitename_field.grid(row=0, column=1)
+#
+#         label = tk.Label(add_frame, text='Логін:', bd=3)
+#         label.grid(row=1, column=0)
+#         login_field = tk.Entry(add_frame, textvariable=sites_handler.login, bg='white', highlightthickness=1, show="*")
+#         login_field.insert(0, "")
+#         login_field.grid(row=1, column=1)
+#
+#         label = tk.Label(add_frame, text='Пароль:', bd=3)
+#         label.grid(row=2, column=0)
+#         password_field = tk.Entry(add_frame, textvariable=sites_handler.password, bg='white', highlightthickness=1,
+#                                   show="*")
+#         password_field.insert(0, "")
+#         password_field.grid(row=2, column=1)
+#
+#         label = tk.Label(add_frame, text='Тип входу:')
+#         label.grid(row=3, column=0)
+#         radio1 = tk.Radiobutton(add_frame, text="Логін-пароль", variable=sites_handler.selected_kind_of_entrance,
+#                                 value="password")
+#         radio2 = tk.Radiobutton(add_frame, text="Гугл", variable=sites_handler.selected_kind_of_entrance,
+#                                 value="google")
+#         radio3 = tk.Radiobutton(add_frame, text="Фейс.. Мета", variable=sites_handler.selected_kind_of_entrance,
+#                                 value="meta")
+#         radio4 = tk.Radiobutton(add_frame, text="Гітхаб", variable=sites_handler.selected_kind_of_entrance,
+#                                 value="github")
+#         radio5 = tk.Radiobutton(add_frame, text="Яблуко", variable=sites_handler.selected_kind_of_entrance,
+#                                 value="apple")
+#         radio1.grid(row=3, column=1)
+#         radio2.grid(row=4, column=1)
+#         radio3.grid(row=5, column=1)
+#         radio4.grid(row=6, column=1)
+#         radio5.grid(row=7, column=1)
+#         add_frame.grid(row=4, column=1, padx=10)
+#         back_btn = tk.Button(btns_add_frame, text="Назад", command=self.go_back)
+#         btn = tk.Button(btns_add_frame, text="Додати", command=sites_handler.add_site)
+#         btn.grid(row=0, column=0, padx=10)
+#         back_btn.grid(row=0, column=1, padx=10)
+#         btns_add_frame.grid(row=2, column=1, padx=10)
+#         frame.grid(row=1, column=0)
 
 import pymysql
 
