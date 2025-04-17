@@ -1,5 +1,7 @@
 import tkinter as tk
 import re
+from wsgiref.validate import validator
+
 import pymysql
 import pymysql.cursors
 class App():
@@ -266,19 +268,46 @@ class SitesHandler():
 
     def add_site(self):
         connection = self.connector.create_connection()
-        with connection.cursor() as c:
-            try:
-                query = """
-                        INSERT INTO sites (site, entrance_type, user_id, login, password)
-                        VALUES (%s, %s, %s, %s, %s)
-                    """
-                values = (self.site.get(), self.selected_kind_of_entrance.get(), 1, self.login.get(), self.password.get())#self.user.user_id
-                c.execute(query, values)
-                connection.commit()
-                print("✅ Сайт успішно додано!")
-            except self.connector.Error as err:
-                print("❌ Помилка:", err)
+        if self.validator(self.site, self.selected_kind_of_entrance, self.login):
+            with connection.cursor() as c:
+                try:
+                    query = """
+                            INSERT INTO sites (site, entrance_type, user_id, login, password)
+                            VALUES (%s, %s, %s, %s, %s)
+                        """
+                    values = (self.site.get(), self.selected_kind_of_entrance.get(), 1, self.login.get(), self.password.get())#self.user.user_id
+                    c.execute(query, values)
+                    connection.commit()
+                    return True
+                except self.connector.Error as err:
+                    return False
+        else:
+            return False
 
+    def validator(self, site, entrance_type ,login):
+        if login:
+            with self.connector.create_connection().cursor() as c:
+                user_id = self.user.user_id
+
+                query = "SELECT COUNT(*) FROM sites WHERE user_id = %s AND site = %s AND login = %s"
+                c.execute(query, (user_id, site, login))
+                result = c.fetchone()
+                count = result['COUNT(*)']
+                if count:
+                    return False
+                else:
+                    return True
+        else:
+            with self.connector.create_connection().cursor() as c:
+                user_id = self.user.user_id
+
+                query = "SELECT COUNT(*) FROM sites WHERE user_id = %s AND site = %s AND entrance_type = %s"
+                c.execute(query, (user_id, site, entrance_type))
+                (count,) = c.fetchone()
+                if count:
+                    return False
+                else:
+                    return True
 
     def get_sites(self, user_id):
         connection = self.connector.create_connection()
@@ -424,57 +453,6 @@ class SignOnWindow(Window):
         btn.grid(row=0, column=0, padx=10)
         back_btn.grid(row=0, column=1, padx=10)
 
-# class AddingSitesWindow(Window):
-#     def show(self):
-#         self.get_previous_window()
-#         self.set_current_window()
-#         app = self.app
-#         sites_handler = app.sites_handler
-#         app.clear_window()
-#         label = tk.Label(app.win, text="Введіть сайт на якому ви зареєстровані!", font=("Arial", 14))
-#         label.pack(pady=5)
-#
-#         add_frame = tk.Frame(app.win, bd=2, relief="ridge")
-#         btns_add_frame = tk.Frame(app.win)
-#         label = tk.Label(add_frame, text='Сайт:', bd=3)
-#         label.grid(row=0, column=0)
-#
-#         sitename_field = tk.Entry(add_frame, textvariable=sites_handler.site, bg='white', highlightthickness=1)
-#         sitename_field.insert(0, "")
-#         sitename_field.grid(row=0, column=1)
-#
-#         label = tk.Label(add_frame, text='Логін:', bd=3)
-#         label.grid(row=1, column=0)
-#         login_field = tk.Entry(add_frame, textvariable=sites_handler.login, bg='white', highlightthickness=1, show="*")
-#         login_field.insert(0, "")
-#         login_field.grid(row=1, column=1)
-#
-#         label = tk.Label(add_frame, text='Пароль:', bd=3)
-#         label.grid(row=2, column=0)
-#         password_field = tk.Entry(add_frame, textvariable=sites_handler.password, bg='white', highlightthickness=1,show="*")
-#         password_field.insert(0, "")
-#         password_field.grid(row=2, column=1)
-#
-#         label = tk.Label(add_frame, text='Тип входу:')
-#         label.grid(row=3, column=0)
-#         radio1 = tk.Radiobutton(add_frame, text="Логін-пароль", variable=sites_handler.selected_kind_of_entrance, value="password")
-#         radio2 = tk.Radiobutton(add_frame, text="Гугл", variable=sites_handler.selected_kind_of_entrance, value="google")
-#         radio3 = tk.Radiobutton(add_frame, text="Фейс.. Мета", variable=sites_handler.selected_kind_of_entrance, value="meta")
-#         radio4 = tk.Radiobutton(add_frame, text="Гітхаб", variable=sites_handler.selected_kind_of_entrance, value="github")
-#         radio5 = tk.Radiobutton(add_frame, text="Яблуко", variable=sites_handler.selected_kind_of_entrance, value="apple")
-#         radio1.grid(row=3, column=1)
-#         radio2.grid(row=4, column=1)
-#         radio3.grid(row=5, column=1)
-#         radio4.grid(row=6, column=1)
-#         radio5.grid(row=7, column=1)
-#         add_frame.pack(pady = 5)
-#
-#         back_btn = tk.Button(btns_add_frame, text="Назад", command=self.go_back)
-#         btn = tk.Button(btns_add_frame, text="Додати", command=sites_handler.add_site)
-#         btn.grid(row=0, column=0, padx=10)
-#         back_btn.grid(row=0, column=1, padx=10)
-#         btns_add_frame.pack(pady=10)
-
 class MySitesWindow(Window):
     def parser(self, pframe: tk.Frame, sites: list[dict]):
         for count, site in enumerate(sites, start=1):
@@ -544,77 +522,6 @@ class MySitesWindow(Window):
         tk.Button(btns_add_frame, text="Додати", command=sites_handler.add_site, width=15).grid(row=0, column=0, padx=20)
         tk.Button(btns_add_frame, text="Назад", command=self.go_back, width=15).grid(row=0, column=1, padx=20)
 
-# class MySitesWindow(Window):
-#     def parser(self, pframe:tk.Frame, sites:list[dict]):
-#         count = 1
-#         frame = tk.Frame(pframe)
-#         for site in sites:
-#             self._string_generator(frame, site, count)
-#             count += 1
-#         frame.grid(row=1, column=0)
-#     def _string_generator(self,frame:tk.Frame, site:dict, string_number:int):
-#         gusset = f", Login: {site['login']}, Password: {site['password']}" if site['entrance_type'] == 'password' else "."
-#         label = tk.Label(frame, text=f"Site: {site['site']}, Kind of entrance: {site['entrance_type']}{gusset}")
-#         label.grid(row=string_number + 1, column=0)
-#     def show(self):
-#         self.get_previous_window()
-#         self.set_current_window()
-#         app = self.app
-#         sites_handler = app.sites_handler
-#         app.clear_window()
-#         self.set_fullscreen()
-#
-#         label = tk.Label(app.win, text="Сайти на яких ви зареєстровані", font=("Arial", 14))
-#         label.grid(row=0, column=0)
-#
-#         frame = tk.Frame(self.app.win, bd=2, relief="ridge")
-#         self.parser(frame,app.sites_handler.get_sites(1))#!!!!
-#         add_frame = tk.Frame(app.win, bd=2, relief="ridge")
-#         btns_add_frame = tk.Frame(app.win)
-#         label = tk.Label(add_frame, text='Сайт:', bd=3)
-#         label.grid(row=2, column=0)
-#
-#         sitename_field = tk.Entry(add_frame, textvariable=sites_handler.site, bg='white', highlightthickness=1)
-#         sitename_field.insert(0, "")
-#         sitename_field.grid(row=0, column=1)
-#
-#         label = tk.Label(add_frame, text='Логін:', bd=3)
-#         label.grid(row=1, column=0)
-#         login_field = tk.Entry(add_frame, textvariable=sites_handler.login, bg='white', highlightthickness=1, show="*")
-#         login_field.insert(0, "")
-#         login_field.grid(row=1, column=1)
-#
-#         label = tk.Label(add_frame, text='Пароль:', bd=3)
-#         label.grid(row=2, column=0)
-#         password_field = tk.Entry(add_frame, textvariable=sites_handler.password, bg='white', highlightthickness=1,
-#                                   show="*")
-#         password_field.insert(0, "")
-#         password_field.grid(row=2, column=1)
-#
-#         label = tk.Label(add_frame, text='Тип входу:')
-#         label.grid(row=3, column=0)
-#         radio1 = tk.Radiobutton(add_frame, text="Логін-пароль", variable=sites_handler.selected_kind_of_entrance,
-#                                 value="password")
-#         radio2 = tk.Radiobutton(add_frame, text="Гугл", variable=sites_handler.selected_kind_of_entrance,
-#                                 value="google")
-#         radio3 = tk.Radiobutton(add_frame, text="Фейс.. Мета", variable=sites_handler.selected_kind_of_entrance,
-#                                 value="meta")
-#         radio4 = tk.Radiobutton(add_frame, text="Гітхаб", variable=sites_handler.selected_kind_of_entrance,
-#                                 value="github")
-#         radio5 = tk.Radiobutton(add_frame, text="Яблуко", variable=sites_handler.selected_kind_of_entrance,
-#                                 value="apple")
-#         radio1.grid(row=3, column=1)
-#         radio2.grid(row=4, column=1)
-#         radio3.grid(row=5, column=1)
-#         radio4.grid(row=6, column=1)
-#         radio5.grid(row=7, column=1)
-#         add_frame.grid(row=4, column=1, padx=10)
-#         back_btn = tk.Button(btns_add_frame, text="Назад", command=self.go_back)
-#         btn = tk.Button(btns_add_frame, text="Додати", command=sites_handler.add_site)
-#         btn.grid(row=0, column=0, padx=10)
-#         back_btn.grid(row=0, column=1, padx=10)
-#         btns_add_frame.grid(row=2, column=1, padx=10)
-#         frame.grid(row=1, column=0)
 
 import pymysql
 
