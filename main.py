@@ -473,6 +473,15 @@ class MySitesWindow(Window):
         label = tk.Label(frame, text=f"Site: {site['site']}, Kind of entrance: {site['entrance_type']}{gusset}", anchor="w")
         label.grid(row=string_number, column=0, sticky="w", padx=5, pady=2)
 
+    def _toggle_inputs(self, radio_var, handled_fields: tuple):
+        choice = radio_var.get()
+        if choice == "password":
+            for f in handled_fields:
+                f.config(state='normal')
+        else:
+            for f in handled_fields:
+                f.config(state='disabled')
+
     def show(self):
         self.get_previous_window()
         self.set_current_window()
@@ -523,7 +532,7 @@ class MySitesWindow(Window):
         ]
 
         for i, (text, value) in enumerate(radios):
-            tk.Radiobutton(radio_frame, text=text, variable=sites_handler.selected_kind_of_entrance, value=value).grid(row=i, column=0, sticky="w")
+            tk.Radiobutton(radio_frame, text=text, variable=sites_handler.selected_kind_of_entrance, command=lambda: self._toggle_inputs(sites_handler.selected_kind_of_entrance,(login_field,password_field)), value=value).grid(row=i, column=0, sticky="w")
 
         # Кнопки
         btns_add_frame = tk.Frame(main_container)
