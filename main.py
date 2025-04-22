@@ -13,7 +13,6 @@ class App():
         self.windows = {"start_window": StartWindow(self),
                         "sign_in_window": SignInWindow(self),
                         "sign_on_window": SignOnWindow(self),
-                        #"adding_sites_window": AddingSitesWindow(self),
                         "my_sites_window": MySitesWindow(self)
                         }
         self.current_page = self.windows["start_window"]
@@ -60,8 +59,7 @@ class App():
         center_window(self.win)
         self.win.title('Якийсь там застосунок')
         self.win.resizable(height=False, width=False)
-        #self.windows['start_window'].show()
-        self.windows["my_sites_window"].show()
+        self.windows['start_window'].show()
         self.win.mainloop()
 
     def _go_back(self):
@@ -142,8 +140,11 @@ class App():
             self.user.reset_email()
         else:
             self.user.register(self.connector)
-            self.clear_window()
-            self._show_success_message("Вітаємо! Ви успішно зареєструвалися! ")
+            self.sign_in()
+
+    def sign_out(self):
+        self.user.clear_user_id()
+        self.windows['start_window'].show()
 
 class Connector():
     def __init__(self):
@@ -197,6 +198,9 @@ class User():
 
     def get_user_id(self):
         return self.user_id
+
+    def clear_user_id(self):
+        self.user_id = None
 
     def reset_username(self):
         self.username.set("")
@@ -258,6 +262,7 @@ class User():
 
 class SitesHandler():
     def __init__(self, app: App):
+        self.app = app
         self.connector = app.connector
         self.user= app.user
         self.selected_kind_of_entrance = tk.StringVar()
@@ -275,9 +280,10 @@ class SitesHandler():
                             INSERT INTO sites (site, entrance_type, user_id, login, password)
                             VALUES (%s, %s, %s, %s, %s)
                         """
-                    values = (self.site.get(), self.selected_kind_of_entrance.get(), 1, self.login.get(), self.password.get())#self.user.user_id
+                    values = (self.site.get(), self.selected_kind_of_entrance.get(), self.user.get_user_id(), self.login.get(), self.password.get())#self.user.user_id
                     c.execute(query, values)
                     connection.commit()
+                    self.app.windows['my_sites_window'].show()
                     return True
                 except self.connector.Error as err:
                     return False
@@ -350,6 +356,7 @@ class Window():
 
     def set_small_window(self, width=400, height=300):
         app = self.app
+        app.win.attributes("-fullscreen", False)
         screen_width = app.win.winfo_screenwidth()
         screen_height = app.win.winfo_screenheight()
         x = (screen_width - width) // 2
@@ -359,6 +366,7 @@ class Window():
 
 class StartWindow(Window):
     def show(self):
+        self.set_small_window()
         self.get_previous_window()
         self.set_current_window()
         app = self.app
@@ -377,6 +385,7 @@ class StartWindow(Window):
 
 class SignInWindow(Window):
     def show(self):
+        self.set_small_window()
         self.get_previous_window()
         self.set_current_window()
         app = self.app
@@ -409,6 +418,7 @@ class SignInWindow(Window):
 
 class SignOnWindow(Window):
     def show(self):
+        self.set_small_window()
         self.get_previous_window()
         self.set_current_window()
         app = self.app
@@ -482,7 +492,7 @@ class MySitesWindow(Window):
         # Список сайтів
         sites_frame = tk.Frame(main_container, bd=2, relief="groove", padx=10, pady=10)
         sites_frame.pack(fill="x", padx=10, pady=10)
-        self.parser(sites_frame, sites_handler.get_sites(1))
+        self.parser(sites_frame, sites_handler.get_sites(app.user.user_id))
 
         # Форма додавання
         add_frame = tk.LabelFrame(main_container, text="Додати новий сайт", padx=10, pady=10, font=("Arial", 12))
@@ -520,7 +530,7 @@ class MySitesWindow(Window):
         btns_add_frame.pack(pady=20)
 
         tk.Button(btns_add_frame, text="Додати", command=sites_handler.add_site, width=15).grid(row=0, column=0, padx=20)
-        tk.Button(btns_add_frame, text="Назад", command=self.go_back, width=15).grid(row=0, column=1, padx=20)
+        tk.Button(btns_add_frame, text="Вийти", command=self.app.sign_out, width=15).grid(row=0, column=1, padx=20)
 
 
 import pymysql
