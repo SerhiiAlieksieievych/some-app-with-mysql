@@ -1,9 +1,9 @@
 import tkinter as tk
 import re
-from wsgiref.validate import validator
-
-import pymysql
+import os
+from dotenv import load_dotenv
 import pymysql.cursors
+
 class App():
     def __init__(self):
         self.win = tk.Tk()
@@ -15,7 +15,6 @@ class App():
                         "sign_on_window": SignOnWindow(self),
                         "my_sites_window": MySitesWindow(self)
                         }
-        self.current_page = self.windows["start_window"]
 
     def validate_username(self):
         """Дозволяє лише літери, цифри та _, від 3 до 20 символів."""
@@ -83,24 +82,23 @@ class App():
         btn.pack(pady=20)
 
     def sign_in(self):
-        print(self.current_page, "CUR")
-        print(self.windows['sign_in_window'].previous_window, "PREV")
         if not self.validate_username():
             self.clear_window()
-            self._show_warning_message("Ім'я має містити лише латинські літери, цифри та знак підкреслення, та має бути довжиною від 3 до 20 символів.", self.current_page.show)
+            self._show_warning_message("Ім'я має містити лише латинські літери, цифри та знак підкреслення, та має бути довжиною від 3 до 20 символів.", self.windows['sign_in_window'].show)
             self.user.reset_username()
         elif not self.user.check_for_existence_username(self.connector,self.user.username.get()):
             self.clear_window()
             self._show_warning_message(
                 "Користувач з таким логіном не зареєстрований.",
-                self.current_page.show)
+                self.windows['sign_in_window'].show)
             self.user.reset_all()
         elif self.user.login(self.connector, self.user.username.get(), self.user.password.get()):
             self.clear_window()
+            self.user.reset_all()
             self.windows["my_sites_window"].show()
         else:
             self.clear_window()
-            self._show_warning_message("Невірний пароль!", self.current_page.show)
+            self._show_warning_message("Невірний пароль!", self.windows['sign_in_window'].show)
             self.user.reset_password()
 
     def sign_on(self):
@@ -108,38 +106,39 @@ class App():
             self.clear_window()
             self._show_warning_message(
                 "Ім'я має містити лише латинські літери, цифри та знак підкреслення, та має бути довжиною від 3 до 20 символів.",
-                self.current_page.show)
+                self.windows['sign_on_window'].show)
             self.user.reset_username()
         elif not self.validate_email():
             self.clear_window()
             self._show_warning_message(
                 "Введіть коректну пошту.",
-                self.current_page.show)
+                self.windows['sign_on_window'].show)
             self.user.reset_email()
         elif not self.validate_password():
             self.clear_window()
             self._show_warning_message(
                 "Пароль має бути довжиною від 8 до 20 символів, містити хоча б одну латинську літеру та одну цифру.",
-                self.current_page.show)
+                self.windows['sign_on_window'].show)
             self.user.reset_password()
             self.user.reset_repeated_password()
         elif self.user.password.get() != self.user.repeated_password.get():
             self.clear_window()
             self._show_warning_message(
                 "Пароль має збігатися в обох полях.",
-                self.current_page.show)
+                self.windows['sign_on_window'].show)
             self.user.reset_password()
             self.user.reset_repeated_password()
         elif self.user.check_for_existence_username(self.connector, self.user.username.get()):
             self.clear_window()
-            self._show_warning_message("Користувач з таким ім'ям вже зареєстрований!", self.current_page.show)
+            self._show_warning_message("Користувач з таким ім'ям вже зареєстрований!", self.windows['sign_on_window'].show)
             self.user.reset_username()
         elif self.user.check_has_duplication_email(self.connector, self.user.email.get()):
             self.clear_window()
-            self._show_warning_message("Користувач з такою поштою вже зареєстрований!", self.current_page.show)
+            self._show_warning_message("Користувач з такою поштою вже зареєстрований!",self.windows['sign_on_window'].show)
             self.user.reset_email()
         else:
             self.user.register(self.connector)
+            self.user.reset_all()
             self.sign_in()
 
     def sign_out(self):
@@ -148,11 +147,13 @@ class App():
 
 class Connector():
     def __init__(self):
-        self.host = "localhost"
-        self.user = "root"
-        self.password = "1234"
-        self.database = "my_database"
-        self.charset = "utf8mb4"
+        load_dotenv()  # Завантажує змінні з .env
+
+        self.host = os.getenv("DB_HOST")
+        self.user = os.getenv("DB_USER")
+        self.password = os.getenv("DB_PASSWORD")
+        self.database = os.getenv("DB_NAME")
+        self.charset = os.getenv("DB_CHARSET", "utf8mb4")
 
     def create_connection(self):
         return pymysql.connect(
@@ -271,6 +272,13 @@ class SitesHandler():
         self.password = tk.StringVar()
         self.selected_kind_of_entrance.set("password")
 
+    def clear_all(self):
+        self.selected_kind_of_entrance.set('')
+        self.site.set('')
+        self.login.set('')
+        self.password.set('')
+        self.selected_kind_of_entrance.set("password")
+
     def add_site(self):
         connection = self.connector.create_connection()
         if self.validator(self.site, self.selected_kind_of_entrance, self.login):
@@ -283,6 +291,7 @@ class SitesHandler():
                     values = (self.site.get(), self.selected_kind_of_entrance.get(), self.user.get_user_id(), self.login.get(), self.password.get())#self.user.user_id
                     c.execute(query, values)
                     connection.commit()
+                    self.clear_all()
                     self.app.windows['my_sites_window'].show()
                     return True
                 except self.connector.Error as err:
@@ -334,18 +343,6 @@ class Window():
         self.app = app
         self.previous_window = previous_window
 
-    def get_previous_window(self):
-        if self.previous_window != self.app.current_page:
-            self.previous_window = self.app.current_page
-
-    def set_current_window(self):
-        if self.previous_window != self.app.current_page:
-            self.app.current_page = self
-
-    def go_back(self):
-        self.previous_window.show()
-        self.app.user.reset_all()
-
     def set_fullscreen(self):
         app = self.app
         screen_width = app.win.winfo_screenwidth()
@@ -367,8 +364,7 @@ class Window():
 class StartWindow(Window):
     def show(self):
         self.set_small_window()
-        self.get_previous_window()
-        self.set_current_window()
+
         app = self.app
         btn_font = ("Arial", 14, "bold")
         app.clear_window()
@@ -386,8 +382,7 @@ class StartWindow(Window):
 class SignInWindow(Window):
     def show(self):
         self.set_small_window()
-        self.get_previous_window()
-        self.set_current_window()
+
         app = self.app
         user = app.user
         app.clear_window()
@@ -411,7 +406,7 @@ class SignInWindow(Window):
         frame.pack(pady=10)
         btns_frame.pack(pady=10)
 
-        back_btn = tk.Button(btns_frame, text="Назад", command=self.go_back)
+        back_btn = tk.Button(btns_frame, text="Назад", command=self.app.windows['start_window'].show)
         btn = tk.Button(btns_frame, text="Увійти", command=self.app.sign_in)
         btn.grid(row=0, column=0, padx=10)
         back_btn.grid(row=0, column=1, padx=10)
@@ -419,8 +414,7 @@ class SignInWindow(Window):
 class SignOnWindow(Window):
     def show(self):
         self.set_small_window()
-        self.get_previous_window()
-        self.set_current_window()
+
         app = self.app
         user = app.user
         app.clear_window()
@@ -458,7 +452,7 @@ class SignOnWindow(Window):
         frame.pack(pady=10)
         btns_frame.pack(pady=10)
 
-        back_btn = tk.Button(btns_frame, text="Назад", command=self.go_back)
+        back_btn = tk.Button(btns_frame, text="Назад", command=self.app.windows['start_window'].show)
         btn = tk.Button(btns_frame, text="Зареєструватися", command=self.app.sign_on)
         btn.grid(row=0, column=0, padx=10)
         back_btn.grid(row=0, column=1, padx=10)
@@ -483,8 +477,7 @@ class MySitesWindow(Window):
                 f.config(state='disabled')
 
     def show(self):
-        self.get_previous_window()
-        self.set_current_window()
+
         app = self.app
         sites_handler = app.sites_handler
         app.clear_window()
