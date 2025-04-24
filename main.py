@@ -85,7 +85,7 @@ class App():
         if not self.validate_username():
             self.clear_window()
             self._show_warning_message("Ім'я має містити лише латинські літери, цифри та знак підкреслення, та має бути довжиною від 3 до 20 символів.", self.windows['sign_in_window'].show)
-            self.user.reset_username()
+            self.user.reset_all()
         elif not self.user.check_for_existence_username(self.connector,self.user.username.get()):
             self.clear_window()
             self._show_warning_message(
@@ -107,13 +107,15 @@ class App():
             self._show_warning_message(
                 "Ім'я має містити лише латинські літери, цифри та знак підкреслення, та має бути довжиною від 3 до 20 символів.",
                 self.windows['sign_on_window'].show)
-            self.user.reset_username()
+            self.user.reset_all()
         elif not self.validate_email():
             self.clear_window()
             self._show_warning_message(
                 "Введіть коректну пошту.",
                 self.windows['sign_on_window'].show)
             self.user.reset_email()
+            self.user.reset_password()
+            self.user.reset_repeated_password()
         elif not self.validate_password():
             self.clear_window()
             self._show_warning_message(
@@ -131,14 +133,15 @@ class App():
         elif self.user.check_for_existence_username(self.connector, self.user.username.get()):
             self.clear_window()
             self._show_warning_message("Користувач з таким ім'ям вже зареєстрований!", self.windows['sign_on_window'].show)
-            self.user.reset_username()
+            self.user.reset_all()
         elif self.user.check_has_duplication_email(self.connector, self.user.email.get()):
             self.clear_window()
             self._show_warning_message("Користувач з такою поштою вже зареєстрований!",self.windows['sign_on_window'].show)
             self.user.reset_email()
+            self.user.reset_password()
+            self.user.reset_repeated_password()
         else:
             self.user.register(self.connector)
-            self.user.reset_all()
             self.sign_in()
 
     def sign_out(self):
