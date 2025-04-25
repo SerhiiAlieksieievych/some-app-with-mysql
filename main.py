@@ -267,6 +267,7 @@ class User():
 class SitesHandler():
     def __init__(self, app: App):
         self.app = app
+        self.win = app.win
         self.connector = app.connector
         self.user= app.user
         self.selected_kind_of_entrance = tk.StringVar()
@@ -282,9 +283,16 @@ class SitesHandler():
         self.password.set('')
         self.selected_kind_of_entrance.set("password")
 
+    def _show_warning_message(self, text):
+        self.app.clear_window()
+        label = tk.Label(self.win, text=text, font=("Arial", 14), wraplength=260, justify="left")
+        label.pack(pady=20)
+        btn = tk.Button(self.win, text="Спробувати ще раз", command=self.app.windows['my_sites_window'].show)
+        btn.pack(pady=20)
+
     def add_site(self):
         connection = self.connector.create_connection()
-        if self.validator(self.site, self.selected_kind_of_entrance, self.login):
+        if self.validator(self.site.get(), self.selected_kind_of_entrance.get(), self.login.get(), self.password.get()):
             with connection.cursor() as c:
                 try:
                     query = """
@@ -298,12 +306,21 @@ class SitesHandler():
                     self.app.windows['my_sites_window'].show()
                     return True
                 except self.connector.Error as err:
+                    self._show_warning_message(err)
                     return False
-        else:
-            return False
 
-    def validator(self, site, entrance_type ,login):
-        if login:
+    def validator(self, site, entrance_type ,login, password):
+        site_pattern = r'[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(site_pattern, site):
+            self._show_warning_message("Введіть адекватний URL")
+            return False
+        if entrance_type == 'password':
+            if login.strip() == '':
+                self._show_warning_message("Введіть логін")
+                return False
+            if password.strip() == '':
+                self._show_warning_message("Введіть пароль")
+                return False
             with self.connector.create_connection().cursor() as c:
                 user_id = self.user.user_id
 
@@ -312,6 +329,7 @@ class SitesHandler():
                 result = c.fetchone()
                 count = result['COUNT(*)']
                 if count:
+                    self._show_warning_message("Сайт з таким логіном вже доданий в базу даних")
                     return False
                 else:
                     return True
@@ -336,10 +354,8 @@ class SitesHandler():
                 result = c.fetchall()
                 return result
         except  pymysql.MySQLError as err:
-            print(f"Помилка: {err}")
+            self._show_warning_message(err)
             return None
-
-
 
 class Window():
     def __init__(self, app:App, previous_window = None):
@@ -508,7 +524,7 @@ class MySitesWindow(Window):
         sitename_field.grid(row=0, column=1, pady=5)
 
         tk.Label(add_frame, text='Логін:').grid(row=1, column=0, sticky="e", pady=5)
-        login_field = tk.Entry(add_frame, textvariable=sites_handler.login, bg='white', show="*", width=40)
+        login_field = tk.Entry(add_frame, textvariable=sites_handler.login, bg='white', width=40)
         login_field.grid(row=1, column=1, pady=5)
 
         tk.Label(add_frame, text='Пароль:').grid(row=2, column=0, sticky="e", pady=5)
