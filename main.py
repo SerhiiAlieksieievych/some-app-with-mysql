@@ -276,8 +276,12 @@ class SitesHandler():
         self.password = tk.StringVar()
         self.selected_kind_of_entrance.set("password")
 
+    def clear_log_pass(self):
+        self.login.set('')
+        self.password.set('')
+
     def clear_all(self):
-        self.selected_kind_of_entrance.set('')
+        #self.selected_kind_of_entrance.set('')
         self.site.set('')
         self.login.set('')
         self.password.set('')
@@ -329,7 +333,7 @@ class SitesHandler():
                 result = c.fetchone()
                 count = result['COUNT(*)']
                 if count:
-                    self._show_warning_message("Сайт з таким логіном вже доданий в базу даних")
+                    self._show_warning_message("Сайт з такою назвою і з таким логіном вже доданий в базу даних")
                     return False
                 else:
                     return True
@@ -339,10 +343,13 @@ class SitesHandler():
 
                 query = "SELECT COUNT(*) FROM sites WHERE user_id = %s AND site = %s AND entrance_type = %s"
                 c.execute(query, (user_id, site, entrance_type))
-                (count,) = c.fetchone()
+                result = c.fetchone()
+                count = result['COUNT(*)']
                 if count:
+                    self._show_warning_message("Сайт з такою назвою і таким методом входу вже доданий в базу даних")
                     return False
                 else:
+                    print(2)
                     return True
 
     def get_sites(self, user_id):
@@ -494,12 +501,14 @@ class MySitesWindow(Window):
                 f.config(state='normal')
         else:
             for f in handled_fields:
+                self.app.sites_handler.clear_log_pass()
                 f.config(state='disabled')
 
     def show(self):
 
         app = self.app
         sites_handler = app.sites_handler
+        sites_handler.clear_all()
         app.clear_window()
         self.set_fullscreen()
 
