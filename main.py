@@ -382,9 +382,10 @@ class Window():
 
 class StartWindow(Window):
     def show(self):
-        self.set_small_window()
-
         app = self.app
+        app.user.reset_all()
+        app.user.clear_user_id()
+        self.set_small_window()
         btn_font = ("Arial", 14, "bold")
         app.clear_window()
         suggestion = tk.Label(app.win, text="Оберіть потрібну дію:", font=("Arial", 18, 'bold'), pady=10)
